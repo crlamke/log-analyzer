@@ -33,10 +33,10 @@ from excel_util import *
 APP_NAME = "Log Analyzer"
 APP_VERSION = "v0.1"
 WELCOME_MSG = "Welcome to the Log Analyzer"
-AUTHORS = "Created and maintained by Chris Lamke"
-SOURCE_LINK = "Source code at TBD"
-LOG_HEADER = "********"
-LOG_FOOTER = "********"
+AUTHORS = "Chris Lamke"
+SOURCE_LINK = "https://github.com/crlamke/log-analyzer"
+LOG_SECTION_HEADER = "********"
+LOG_SECTION_FOOTER = "********"
 
 # We set min latency variables to MILLISECS_IN_DAY
 # to enable simple min latency calculation logic.
@@ -258,6 +258,19 @@ def analyze_performance_log(session):
     session.logger.info("Starting performance log analysis.")
 
     try:
+
+        # Set up header row of log details sheet in analysis results doc
+        ws_row = 1
+        ws_col = 1
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, 1, "Log Line")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, 2, "Msg Processing Time")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, 3, "Full Log Entry")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, 4, "Parse Message")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, 5, "Analysis")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, ws_col, "Log Line")
+        ws_row += 1
+
+
         for entry in session.log_entry_list:
             if (entry.valid == True):
                 session.valid_log_entry_count += 1
@@ -328,18 +341,27 @@ def write_analysis_results(session):
                             "{} valid entries included in analysis - ".format(str(session.valid_log_entry_count)) +
                             "{} invalid entries excluded from analysis".format(str(session.invalid_log_entry_count)))
         session.logger.info(entries_analyzed)
+        session.ws_summary.cell(row=1, column=1).value = "Analysis Results Summary"
 
-        ws_row = 2
-        ws_col = 13
+        ws_row = 3
+        ws_col = 1
+        session.ws_summary.cell(row=ws_row, column=1).value = "Timing Group"
+        session.ws_summary.cell(row=ws_row, column=2).value = "Min Time (ms)"
+        session.ws_summary.cell(row=ws_row, column=3).value = "Max Time (ms)"
+        session.ws_summary.cell(row=ws_row, column=4).value = "Avg Time (ms)"
+        ws_row += 1
         for key in session.timing_groups:
             if (session.timing_groups[key].group_count > 0):
+                avg_time = session.timing_groups[key].total_latency / session.timing_groups[key].group_count
                 group_report_line_0 = "For timing group \"{}\"".format(session.timing_groups[key].display_name)
                 group_report_line_0 += ", min time = {} ms".format(session.timing_groups[key].min_latency)
                 group_report_line_0 += ", max time = {} ms".format(session.timing_groups[key].max_latency)
-                group_report_line_0 += ", avg time = {:.2f} ms".format(
-                    session.timing_groups[key].total_latency / session.timing_groups[key].group_count)
+                group_report_line_0 += ", avg time = {:.2f} ms".format(avg_time)
                 session.logger.info(group_report_line_0)
-                session.ws_summary.cell(row=ws_row, column=ws_col).value = group_report_line_0
+                session.ws_summary.cell(row=ws_row, column=1).value = session.timing_groups[key].display_name
+                session.ws_summary.cell(row=ws_row, column=2).value = session.timing_groups[key].min_latency
+                session.ws_summary.cell(row=ws_row, column=3).value = session.timing_groups[key].max_latency
+                session.ws_summary.cell(row=ws_row, column=4).value = "{:.2f}".format(avg_time)
                 ws_row += 1
             else:
                 group_report_line_0 = "For timing group \"{}\"".format(session.timing_groups[key].display_name)
@@ -366,26 +388,30 @@ def setup(session):
         session.logger = Logger(session.app_log_file_dir, session.app_log_file_name)
 
         session.xls_doc = XLSDoc(session.app_log_file_dir, session.excel_file_name)
-        session.ws_run_info = session.xls_doc.create_worksheet("Run Info", 0)
-        session.ws_summary = session.xls_doc.create_worksheet("Analysis Summary", 1)
-        session.ws_full_log = session.xls_doc.create_worksheet("Analysis Log", 2)
+        session.ws_run_info = session.xls_doc.create_worksheet("Run Info", 2)
+        session.ws_summary = session.xls_doc.create_worksheet("Analysis Summary", 0)
+        session.ws_full_log = session.xls_doc.create_worksheet("Analysis Log", 1)
         session.xls_doc.delete_worksheet("Sheet")
-        session.ws_summary.cell(row=ws_row, column=ws_col).value = "Analysis Results Summary"
 
-        session.logger.info(LOG_HEADER)
+        session.logger.info(LOG_SECTION_HEADER)
         session.logger.info(APP_NAME + " " + APP_VERSION)
-        session.ws_run_info.cell(row=1, column=1).value = APP_NAME + " " + APP_VERSION
+        session.ws_run_info.cell(row=1, column=1).value = "App Name"
+        session.ws_run_info.cell(row=1, column=2).value = APP_NAME
+        session.ws_run_info.cell(row=2, column=1).value = "App version"
+        session.ws_run_info.cell(row=2, column=2).value = APP_VERSION
         session.logger.info(WELCOME_MSG)
         session.logger.info(AUTHORS)
-        session.ws_run_info.cell(row=2, column=1).value = AUTHORS
+        session.ws_run_info.cell(row=3, column=1).value = "Authors"
+        session.ws_run_info.cell(row=3, column=2).value = AUTHORS
         session.logger.info(SOURCE_LINK)
-        session.ws_run_info.cell(row=3, column=1).value = SOURCE_LINK
-        session.logger.info(LOG_FOOTER)
-        3
+        session.ws_run_info.cell(row=4, column=1).value = "Source repo"
+        session.ws_run_info.cell(row=4, column=2).value = SOURCE_LINK
+        session.logger.info(LOG_SECTION_FOOTER)
+
         session.logger.info("Analyzer starting. Time is " +
                             session.session_time )
-        session.ws_run_info.cell(row=4, column=1).value = ("Analyzer start time is "
-                                                           + session.session_time)
+        session.ws_run_info.cell(row=5, column=1).value = "Analyzer start time"
+        session.ws_run_info.cell(row=5, column=2).value = session.session_time
         session.xls_doc.save_doc()
 
         return True

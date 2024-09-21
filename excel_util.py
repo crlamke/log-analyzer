@@ -40,7 +40,6 @@ class XLSDoc:
     def get_worksheet_by_name(self, sheet_name):
         return self.wb[sheet_name]
 
-
     def write_cell(self, ws, ws_row, ws_col, cell_value):
         ws.cell(row=ws_row, column=ws_col).value = cell_value 
 
