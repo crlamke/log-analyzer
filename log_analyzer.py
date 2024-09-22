@@ -90,7 +90,7 @@ class LogEntry:
         self.parse_msg = "" # Store msg from parsing code
         self.full_log_entry = None
         self.log_line = 0 # This log entry's line/position in the performance log
-        self.nifi_entry_time = None # date/time when msg entered nifi dataflow
+        self.proc_start_time = None # date/time when processing began on this msg/item
         self.fields = {}
         self.timings = {}
 
@@ -262,14 +262,16 @@ def analyze_performance_log(session):
         # Set up header row of log details sheet in analysis results doc
         ws_row = 1
         ws_col = 1
-        session.xls_doc.write_cell(session.ws_full_log,ws_row, 1, "Log Line")
-        session.xls_doc.write_cell(session.ws_full_log,ws_row, 2, "Msg Processing Time")
-        session.xls_doc.write_cell(session.ws_full_log,ws_row, 3, "Full Log Entry")
-        session.xls_doc.write_cell(session.ws_full_log,ws_row, 4, "Parse Message")
-        session.xls_doc.write_cell(session.ws_full_log,ws_row, 5, "Analysis")
-        session.xls_doc.write_cell(session.ws_full_log,ws_row, ws_col, "Log Line")
-        ws_row += 1
-
+        log_line_col = 1
+        total_proc_time_col = 2
+        parse_msg_col = 3
+        analysis_errors_col = 4
+        full_log_entry_col = 5
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, log_line_col, "Log Line")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, total_proc_time_col, "Total Processing Time")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, parse_msg_col, "Parse Message")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, analysis_errors_col, "Analysis Errors")
+        session.xls_doc.write_cell(session.ws_full_log,ws_row, full_log_entry_col, "Full Log Entry")
 
         for entry in session.log_entry_list:
             if (entry.valid == True):
@@ -277,6 +279,10 @@ def analyze_performance_log(session):
             else:
                 session.invalid_log_entry_count += 1
                 continue # Don't include this log entry in analysis
+
+            ws_row += 1 # Move to a new row to write log entry analysis results.
+
+            err_msgs = "" # Keep all err msgs together and then write to column in xls doc
 
             # Loop through timing pairs and update vars based on this log entry
             for key in session.timing_pairs:
@@ -290,6 +296,7 @@ def analyze_performance_log(session):
                         max_allowed_violation = "Analysis Note: On log line #{}, {} -> {} delta of {} ms exceeds max allowed ({} ms)".format(
                             str(entry.log_line), start_key, end_key, delta, max_latency)
                         session.logger.info(max_allowed_violation)
+                        err_msgs += "{} - ".format(max_allowed_violation)
                     entry.timings[key] = LogEntryTiming(start_key, end_key, delta)
                     #print("entry.timings = {}".format(entry.timings))
 
@@ -297,17 +304,21 @@ def analyze_performance_log(session):
             start_key = session.total_time.start_key
             end_key = session.total_time.end_key
             max_latency = session.total_time.max_latency
+            entry_total_proc_time = 0
             if (start_key in entry.fields and end_key in entry.fields):
                 delta = int(entry.fields[end_key]) - int(entry.fields[start_key])
                 if (delta > max_latency):
                     max_allowed_violation = "Analysis Note: On log line #{}, total time of {} ms exceeds max allowed ({} ms)".format(
                         entry.log_line, delta, max_latency)
                     session.logger.info(max_allowed_violation)
+                    err_msgs += "{} - ".format(max_allowed_violation)
                 entry.timings["total_time"] = LogEntryTiming(start_key, end_key, delta)
+                entry_total_proc_time = entry.timings["total_time"].value
             else: #TODO need to do more to handle this error since using this log entry will result in invalid stats
                 total_time_error = "Analysis Error: On log line #{}, cannot calculate total time".format(
                         entry.log_line)
                 session.logger.error(total_time_error)
+                err_msgs += "{} - ".format(total_time_error)
 
             # Loop through timing groups and update vars based on this log entry
             for key in session.timing_groups:
@@ -323,6 +334,22 @@ def analyze_performance_log(session):
                         if (session.timing_groups[key].max_latency < timing_value):
                             session.timing_groups[key].max_latency = timing_value
                         #print("Found entry.fields[log_field_key] = {}".format(log_field_value))
+
+            session.xls_doc.write_cell(session.ws_full_log,ws_row, log_line_col, entry.log_line)
+            session.xls_doc.write_cell(session.ws_full_log,ws_row, total_proc_time_col, entry_total_proc_time)
+            session.xls_doc.write_cell(session.ws_full_log,ws_row, full_log_entry_col, entry.full_log_entry)
+            session.xls_doc.write_cell(session.ws_full_log,ws_row, parse_msg_col, entry.parse_msg)
+            session.xls_doc.write_cell(session.ws_full_log,ws_row, analysis_errors_col, err_msgs)
+
+            '''
+            self.valid = True # Whether this is a valid log entry
+            self.parse_msg = "" # Store msg from parsing code
+            self.full_log_entry = None
+            self.log_line = 0 # This log entry's line/position in the performance log
+            self.proc_start_time = None # date/time when processing began on this msg/item
+            self.fields = {}
+            self.timings = {}
+            '''
 
     except (Exception) as ex:
         session.logger.info("Problem during performance analysis - " + str(ex) + " - Exiting analysis.")

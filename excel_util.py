@@ -11,6 +11,22 @@ import os
 from openpyxl import Workbook # Using https://openpyxl.readthedocs.io/en/stable/tutorial.html for write to Excel
 from openpyxl.styles import *
 
+""" XLSFormat class that contains formatting details for Excel data """
+class XLSFormat:
+    wb = None
+    is_bold = False
+    is_italic = False
+    row_height = 0
+    col_width = 0
+    font = None
+
+    def __init__(self, excel_file_dir, excel_file_name):
+        self.font = Font(bold=True)
+
+    def get_bold(self):
+        pass
+
+
 
 """ XLSDoc class that creates, reads, and writes Excel files """
 class XLSDoc:
