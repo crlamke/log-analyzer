@@ -11,8 +11,15 @@ to query, navigate, and manipulate files and directories.
 import os
 
 def is_dir_readable(directory_path):
+    # BUGFIX: this previously only checked os.F_OK (existence), not os.R_OK
+    # (read permission), despite the function name promising a readability
+    # check. A directory that exists but isn't readable would have incorrectly
+    # returned True.
     if (os.access(directory_path, os.F_OK)):
-        return True
+        if (os.access(directory_path, os.R_OK)):
+            return True
+        else:
+            return False
     else:
         return False
 

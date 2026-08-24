@@ -30,6 +30,7 @@ class Logger:
             #"%(asctime)s [%(threadName)s] [%(levelname)s]  %(message)s", '%Y-%m-%d %H:%M:%S')
         self.root_logger = logging.getLogger()
         self.root_logger.setLevel(logging.INFO)
+        self.root_logger.handlers.clear()
         self.logfile_handler = logging.FileHandler(self.logfile)
         self.logfile_handler.setFormatter(self.log_formatter)
         self.root_logger.addHandler(self.logfile_handler)
